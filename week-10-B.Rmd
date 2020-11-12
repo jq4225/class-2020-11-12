@@ -46,6 +46,32 @@ week_10_folds <- vfold_cv(week_10_train, v = 10)
 * Create a model which produces a lower RMSE on the training data. (Do not use the cross-validated data sets until the next Scene.) You may do anything you like! Our advice is to keep the same basic structure as `mod_1_wfl`, but to change the formula and to experiment with various `step_` functions. Call this workflow `mod_2_wfl`. Hints: `step_poly()` and `step_bs()` are fun to play with.
 
 
+```{r}
+mod_1_wfl <- workflow() %>%
+  add_model(linear_reg() %>%
+              set_engine("lm")) %>%
+  add_recipe(recipe(reg_chg ~ treatment + poverty_n, data = week_10_train))
+
+mod_1_wfl %>%
+  fit(data = week_10_train) %>%
+  predict(new_data = week_10_train) %>%
+  bind_cols(week_10_train %>% select(reg_chg)) %>%
+  metrics(truth = reg_chg, estimate = `.pred`)
+```
+```{r}
+mod_2_wfl <- workflow() %>%
+  add_model(linear_reg() %>%
+            set_engine("lm")) %>%
+  add_recipe(recipe(reg_chg ~ treatment + poverty_n + county, 
+                    data = week_10_train) %>% 
+               step_poly(poverty_n, degree = 15))
+
+mod_2_wfl %>%
+  fit(data = week_10_train) %>%
+  predict(new_data = week_10_train) %>%
+  bind_cols(week_10_train %>% select(reg_chg)) %>%
+  metrics(truth = reg_chg, estimate = `.pred`)
+```
  
 
 ## Scene 2
@@ -56,6 +82,17 @@ week_10_folds <- vfold_cv(week_10_train, v = 10)
 
 * Write a few sentences explaining why a model which worked so well on week_10_train worked so poorly on week_10_folds.
 
+Overfitting - fitting data to week 10 train too well makes it harder to apply the model to other datasets
+
+```{r}
+mod_1_wfl %>%
+  fit_resamples(resamples = week_10_folds) %>%
+  collect_metrics()
+
+mod_2_wfl %>%
+  fit_resamples(resamples = week_10_folds) %>%
+  collect_metrics()
+```
 
 
 ## Scene 3
@@ -64,7 +101,22 @@ week_10_folds <- vfold_cv(week_10_train, v = 10)
 
 * Use `predict()` to calculate the expected `reg_chg` in a polling station assigned to the treatment and with `poverty_n` equal to 1.5. 
 
+```{r}
+mod_1_wfl %>%
+  fit(data = week_10_train) %>%
+  predict(new_data = tibble(treatment = "local", poverty_n = 1.5))
+
+mod_1_wfl %>%
+  fit(data = week_10_train) %>%
+  predict(new_data = tibble(treatment = "local", poverty_n = 1.5), 
+          type = "conf_int",
+          level = 0.95)
+```
+
 * Provide the 95% confidence interval for this estimate.
 
+0.034 to 0.053
+
 * Write a few sentences interpreting this confidence interval.
+95% confidence that true change in registration for a polling station w/ poverty 1.5 SDs above the mean and in the treatment group should be between 0.034 and 0.053. 
 
